@@ -46,6 +46,6 @@ Get a free endpoint from [Infura](https://infura.io/) or [Alchemy](https://www.a
 (To be filled as I progress)
 
 ### Acknowledgments
-[Paradigm CTF 2021](https://github.com/paradigmxyz/paradigm-ctf-2021) - The official challenge repository
+[Paradigm CTF 2021](https://github.com/paradigmxyz/paradigm-ctf-2021) - The official challenge repository  
 Writeups and resources I referenced:
 [Christoph Michel - Paradigm CTF 2021 Solutions](https://cmichel.io/paradigm-ctf-2021-solutions/)
