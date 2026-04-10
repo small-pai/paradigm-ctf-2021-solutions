@@ -2,7 +2,7 @@
 
 ## 题目结构
 
-这道题是**逆向工程挑战**，**不提供 `Challenge.sol` 源码**。只能从字节码入手。
+rev = reverse engineering，这是逆向题。**不提供 `Challenge.sol` 源码**。只能从字节码入手。
 
 ## 漏洞类型
 
