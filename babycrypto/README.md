@@ -133,3 +133,10 @@ s = inverse_mod(k, n) * ((z3 + d * r) % n) % n
 
 ## Flag
 PCTF{placeholder}
+
+### 关于 Flag 占位符
+
+在 `chal.py` 中，flag 通过 `os.getenv("FLAG", "PCTF{placeholder}")` 获取。
+- 本地运行时：没有 `FLAG` 环境变量 → 输出 `PCTF{placeholder}`
+- 比赛环境：会设置真正的 `FLAG` 环境变量 → 输出真实 flag
+
