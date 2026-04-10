@@ -85,6 +85,12 @@ s = inverse_mod(k, n) * ((z3 + d * r) % n) % n
 print(f"signature r = {hex(r)}")
 print(f"signature s = {hex(s)}")
 ```
+ ### 4. 提交签名
+在 r? 后输入计算出的 r（去掉 0x 前缀）  
+在 s? 后输入计算出的 s  
+
+ ### 5. 获取 flag
+输出 PCTF{placeholder}
 
 ## 关键代码
 
@@ -99,5 +105,31 @@ d = (((s1 * k) % n - z1) % n) * inverse_mod(r1, n) % n
 r = (k * G).x() % n
 s = inverse_mod(k, n) * ((z3 + d * r) % n) % n
 ```
+
+## Lessons Learned
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| `chal.py` 运行时报 `No module named 'sha3'` | Python 3.12 不兼容 `pysha3` | 改用 `hashlib.sha3_256()` |
+| 用 `socat` 转发后 `solve.py` 卡住 | 时序问题，缓冲区没对齐 | 放弃自动化，改为手动获取数据 + 脚本计算 |
+| 在 `r?` 后面输入了 `CCCC` | 误解了提示 | `r?` 需要输入计算出的签名值，不是消息内容 |
+| 每次运行数据都不一样 | 每次运行生成新的随机密钥 | 每次都要重新计算，不能复用上次的结果 |
+| `solve.py` 只输出了 AAAA 和 BBBB 就卡住 | `recvuntil(b'message? ')` 没有匹配到 | 服务器在发送完签名后不立即发送 `message?` 提示 |
+
+### 关键理解
+
+1. **k 值重用的特征**：所有签名的 r 值相同，因为 `r = (k * G).x`
+2. **为什么用 AAAA/BBBB**：任意消息都可以，只要知道原文就能计算哈希 z
+3. **手动操作比自动化更可靠**：对于简单交互，手动 `nc` + Python 脚本计算比 pwntools 全自动更稳定
+4. **每次运行 `chal.py` 都会生成新的随机密钥**：所以不能复用之前的数据
+
+### 学到的知识点
+
+- ECDSA 签名原理和 k 值重用漏洞
+- `inverse_mod` 计算模逆元
+- Python 3.12 中 `hashlib.sha3_256()` 替代 `pysha3`
+- `socat` 将脚本暴露为网络服务
+- 虚拟环境避免 `externally-managed-environment` 错误
+
 ## Flag
 PCTF{placeholder}
