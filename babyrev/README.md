@@ -1,4 +1,4 @@
-# Babyrev 解题记录
+# Babyrev
 
 ## 题目结构
 
