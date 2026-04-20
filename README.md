@@ -53,6 +53,7 @@ Get a free endpoint from [Infura](https://infura.io/) or [Alchemy](https://www.a
 | babyrev | ✅ Solved |
 | babysandbox | ✅ Solved |
 | lockbox | 🚧 Partially Solved |
+| bank | 📖 Analyzed |
 | ... | 🚧 In Progress |
 
 ### Lessons Learned
