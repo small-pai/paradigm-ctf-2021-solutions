@@ -22,8 +22,8 @@ paradigm-ctf-2021/bank/
 │   ├── contracts/
 │   │   ├── Bank.sol       # 核心银行合约
 │   │   └── Setup.sol      # 题目部署合约（初始化50 WETH）
-└── private/         # 官方标准答案
-    └── Exploit.sol        # 官方攻击合约（核心分析对象）
+└── private/        
+    └── Exploit.sol        # 核心分析对象
 ```
 
 ## 二、核心合约逻辑梳理
