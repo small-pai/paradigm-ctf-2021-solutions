@@ -109,16 +109,13 @@ contract Exploit {
 }
 ```
 ## Lessons Learned
-问题
-原因
-解决方案
-forge create 报错 "invalid value for '--from <ADDRESS>': invalid string length"
-Foundry版本过老，仅支持完整40位0x地址，不识别简写地址或格式错误地址
-使用anvil默认第一个地址（0xf39Fd6e51aad88F4ce6aB8827279cffFb92266），确保地址长度为42位（0x+40位）
-swap后验证仍返回false
-swap输入的amount0Out不足，未掏空Token；或授权WETH数量不足
-增大amount0Out数值（如1000000000000000000），确保授权WETH数量足够大
-RPC连接报错 "URL拼写可能存在错误，请检查"
+|问题|原因|解决方案|
+|---|---|---|
+|部署Setup合约报错“require\(msg\.value == 50 ether\)”|部署时未附带50 ETH初始资金，不符合构造函数要求|部署时添加 \-\-value 50ether 参数，确保传入足够ETH|
+|部署Exploit合约报错“insufficient balance”|部署时传入的ETH不足，无法支付NFT铸造费和强制转账费用|部署时添加 \-\-value 20ether（或更多），确保资金充足|
+|无法理解“为什么是NFT题”|CTF中NFT题不依赖图片UI，仅通过tokenId、mint/transfer/approve判断|看到bytes32 tokenId \+ mint/approve/transfer组合，直接判定为NFT题型|
+|不理解tokenId\-1、tokenId\-2的含义|tokenId由自增salt生成，可预测，历史ID可通过当前ID反向推算|记住：tokenIdSalt自增 → 每铸造一个NFT，tokenId按顺序递增|
+|selfdestruct作用是什么|用于强制向合约转账ETH，绕过对方合约的receive/payable限制|CTF中常用该特性向目标合约“塞钱”，为后续套现做准备|
 
 ### 关键理解
 1. **AMM恒定乘积模型核心**：x*y=k，交易前后乘积保持不变，初始不平衡会导致价格严重偏离正常范围，为价格操纵提供可能。
